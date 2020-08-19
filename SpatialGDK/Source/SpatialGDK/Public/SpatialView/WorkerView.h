@@ -18,6 +18,7 @@ public:
 	// The view delta will exist until the next call to advance.
 	void AdvanceViewDelta();
 
+	ViewDelta& GetViewDelta();
 	const ViewDelta& GetViewDelta() const;
 	const EntityView& GetView() const;
 

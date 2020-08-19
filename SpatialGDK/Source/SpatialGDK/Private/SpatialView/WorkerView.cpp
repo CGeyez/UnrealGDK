@@ -20,6 +20,11 @@ void WorkerView::AdvanceViewDelta()
 	QueuedOps.Empty();
 }
 
+ViewDelta& WorkerView::GetViewDelta()
+{
+	return Delta;
+}
+
 const ViewDelta& WorkerView::GetViewDelta() const
 {
 	return Delta;
