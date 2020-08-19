@@ -2,6 +2,8 @@
 
 #pragma once
 
+//#include "SpatialView/CommandRetryHandlerImpl.h"
+#include "SpatialView/CommandRetryHandler.h"
 #include "SpatialView/ConnectionHandler/AbstractConnectionHandler.h"
 #include "SpatialView/Dispatcher.h"
 #include "SpatialView/WorkerView.h"
@@ -23,7 +25,7 @@ public:
 	ViewCoordinator& operator=(const ViewCoordinator&) = delete;
 	ViewCoordinator& operator=(ViewCoordinator&&) = default;
 
-	void Advance();
+	void Advance(float DeltaTimeS);
 	const ViewDelta& GetViewDelta() const;
 	const EntityView& GetView() const;
 	void FlushMessagesToSend();
@@ -58,6 +60,13 @@ public:
 	void SendMetrics(SpatialMetrics Metrics);
 	void SendLogMessage(Worker_LogLevel Level, const FName& LoggerName, FString Message);
 
+	Worker_RequestId SendReserveEntityIdsRequest(uint32 NumberOfEntityIds, FRetryData RetryData);
+	Worker_RequestId SendCreateEntityRequest(TArray<ComponentData> EntityComponents, TOptional<Worker_EntityId> EntityId,
+											 FRetryData RetryData);
+	Worker_RequestId SendDeleteEntityRequest(Worker_EntityId EntityId, FRetryData RetryData);
+	Worker_RequestId SendEntityQueryRequest(EntityQuery Query, FRetryData RetryData);
+	Worker_RequestId SendEntityCommandRequest(Worker_EntityId EntityId, CommandRequest Request, FRetryData RetryData);
+
 	CallbackId RegisterComponentAddedCallback(Worker_ComponentId ComponentId, FComponentValueCallback Callback);
 	CallbackId RegisterComponentRemovedCallback(Worker_ComponentId ComponentId, FComponentValueCallback Callback);
 	CallbackId RegisterComponentValueCallback(Worker_ComponentId ComponentId, FComponentValueCallback Callback);
@@ -79,9 +88,16 @@ public:
 private:
 	WorkerView View;
 	TUniquePtr<AbstractConnectionHandler> ConnectionHandler;
-	Worker_RequestId NextRequestId;
 	FDispatcher Dispatcher;
 	TArray<TUniquePtr<FSubView>> SubViews;
+
+	Worker_RequestId NextRequestId;
+
+	FReserveEntityIdsRetryHandler ReserveEntityIdRetryHandler;
+	FCreateEntityRetryHandler CreateEntityRetryHandler;
+	FDeleteEntityRetryHandler DeleteEntityRetryHandler;
+	FEntityQueryRetryHandler EntityQueryRetryHandler;
+	FEntityCommandRetryHandler EntityCommandRetryHandler;
 };
 
 } // namespace SpatialGDK
