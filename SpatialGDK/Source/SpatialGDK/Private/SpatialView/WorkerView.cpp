@@ -76,33 +76,41 @@ TUniquePtr<MessagesToSend> WorkerView::FlushLocalChanges()
 
 void WorkerView::SendAddComponent(Worker_EntityId EntityId, ComponentData Data)
 {
-	EntityViewElement& Element = View.FindChecked(EntityId);
-	Element.Components.Emplace(Data.DeepCopy());
-	LocalChanges->ComponentMessages.Emplace(EntityId, MoveTemp(Data));
+	if (View.Contains(EntityId))
+	{
+		EntityViewElement& Element = View.FindChecked(EntityId);
+		Element.Components.Emplace(Data.DeepCopy());
+		LocalChanges->ComponentMessages.Emplace(EntityId, MoveTemp(Data));
+	}
 }
 
 void WorkerView::SendComponentUpdate(Worker_EntityId EntityId, ComponentUpdate Update)
 {
-	EntityViewElement& Element = View.FindChecked(EntityId);
-	ComponentData* Component = Element.Components.FindByPredicate(ComponentIdEquality{ Update.GetComponentId() });
-	if (Component != nullptr)
+	if (View.Contains(EntityId))
 	{
-		//check(Component != nullptr);
-		Component->ApplyUpdate(Update);
+		EntityViewElement& Element = View.FindChecked(EntityId);
+		ComponentData* Component = Element.Components.FindByPredicate(ComponentIdEquality{ Update.GetComponentId() });
+		if (Component != nullptr)
+		{
+			Component->ApplyUpdate(Update);
+		}
+		LocalChanges->ComponentMessages.Emplace(EntityId, MoveTemp(Update));
 	}
-	LocalChanges->ComponentMessages.Emplace(EntityId, MoveTemp(Update));
 }
 
 void WorkerView::SendRemoveComponent(Worker_EntityId EntityId, Worker_ComponentId ComponentId)
 {
-	EntityViewElement& Element = View.FindChecked(EntityId);
-	ComponentData* Component = Element.Components.FindByPredicate(ComponentIdEquality{ ComponentId });
-	if (Component != nullptr)
+	if (View.Contains(EntityId))
 	{
-		//check(Component != nullptr);
-		Element.Components.RemoveAtSwap(Component - Element.Components.GetData());
+		EntityViewElement& Element = View.FindChecked(EntityId);
+		ComponentData* Component = Element.Components.FindByPredicate(ComponentIdEquality{ ComponentId });
+		if (Component != nullptr)
+		{
+			//check(Component != nullptr);
+			Element.Components.RemoveAtSwap(Component - Element.Components.GetData());
+		}
+		LocalChanges->ComponentMessages.Emplace(EntityId, ComponentId);
 	}
-	LocalChanges->ComponentMessages.Emplace(EntityId, ComponentId);
 }
 
 void WorkerView::SendReserveEntityIdsRequest(ReserveEntityIdsRequest Request)
