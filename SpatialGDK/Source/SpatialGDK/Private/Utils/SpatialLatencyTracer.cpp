@@ -189,9 +189,13 @@ TraceKey USpatialLatencyTracer::RetrievePendingTrace(const UObject* Obj, const U
 {
 	FScopeLock Lock(&Mutex);
 
-	ActorFuncKey FuncKey{ Cast<AActor>(Obj), Function };
 	TraceKey ReturnKey = InvalidTraceKey;
-	TrackingRPCs.RemoveAndCopyValue(FuncKey, ReturnKey);
+	if (const AActor* Actor = Cast<AActor>(Obj))
+	{
+		ActorFuncKey FuncKey{ Actor, Function };
+		TrackingRPCs.RemoveAndCopyValue(FuncKey, ReturnKey);
+		UE_LOG(LogSpatialLatencyTracing, Log, TEXT("TrackingRPCs remove:(%s)"), *(Actor->GetName()));
+	}
 	return ReturnKey;
 }
 
@@ -199,9 +203,13 @@ TraceKey USpatialLatencyTracer::RetrievePendingTrace(const UObject* Obj, const G
 {
 	FScopeLock Lock(&Mutex);
 
-	ActorPropertyKey PropKey{ Cast<AActor>(Obj), Property };
 	TraceKey ReturnKey = InvalidTraceKey;
-	TrackingProperties.RemoveAndCopyValue(PropKey, ReturnKey);
+	if (const AActor* Actor = Cast<AActor>(Obj))
+	{
+		ActorPropertyKey PropKey{ Actor, Property };
+		TrackingProperties.RemoveAndCopyValue(PropKey, ReturnKey);
+		//UE_LOG(LogSpatialLatencyTracing, Log, TEXT("TrackingProperties remove:(%s,%s)"), *(Actor->GetName()), *(Property->GetName()));
+	}
 	return ReturnKey;
 }
 
@@ -209,9 +217,13 @@ TraceKey USpatialLatencyTracer::RetrievePendingTrace(const UObject* Obj, const F
 {
 	FScopeLock Lock(&Mutex);
 
-	ActorTagKey EventKey{ Cast<AActor>(Obj), Tag };
 	TraceKey ReturnKey = InvalidTraceKey;
-	TrackingTags.RemoveAndCopyValue(EventKey, ReturnKey);
+	if (const AActor* Actor = Cast<AActor>(Obj))
+	{
+		ActorTagKey EventKey{ Actor, Tag };
+		TrackingTags.RemoveAndCopyValue(EventKey, ReturnKey);
+		UE_LOG(LogSpatialLatencyTracing, Log, TEXT("TrackingTags remove:(%s,%s)"), *(Actor->GetName()), *Tag);
+	}
 	return ReturnKey;
 }
 
@@ -502,9 +514,10 @@ bool USpatialLatencyTracer::AddTrackingInfo(const AActor* Actor, const FString& 
 				if (TrackingRPCs.Find(AFKey) == nullptr)
 				{
 					TrackingRPCs.Add(AFKey, Key);
+					UE_LOG(LogSpatialLatencyTracing, Log, TEXT("(%s) : Add ActorFunc (%s,%s) for trace"), *WorkerId, *Actor->GetName(), *Target);
 					return true;
 				}
-				UE_LOG(LogSpatialLatencyTracing, Warning, TEXT("(%s) : ActorFunc already exists for trace"), *WorkerId);
+				UE_LOG(LogSpatialLatencyTracing, Warning, TEXT("(%s) : ActorFunc (%s,%s) already exists for trace"), *WorkerId, *Actor->GetName(), *Target);
 			}
 			break;
 		case ETraceType::Property:
@@ -514,9 +527,10 @@ bool USpatialLatencyTracer::AddTrackingInfo(const AActor* Actor, const FString& 
 				if (TrackingProperties.Find(APKey) == nullptr)
 				{
 					TrackingProperties.Add(APKey, Key);
+					UE_LOG(LogSpatialLatencyTracing, Log, TEXT("(%s) : Add ActorProperty (%s,%s) for trace"), *WorkerId, *Actor->GetName(), *Target);
 					return true;
 				}
-				UE_LOG(LogSpatialLatencyTracing, Warning, TEXT("(%s) : ActorProperty already exists for trace"), *WorkerId);
+				UE_LOG(LogSpatialLatencyTracing, Warning, TEXT("(%s) : ActorProperty (%s,%s) already exists for trace"), *WorkerId, *Actor->GetName(), *Target);
 			}
 			break;
 		case ETraceType::Tagged:
@@ -525,9 +539,10 @@ bool USpatialLatencyTracer::AddTrackingInfo(const AActor* Actor, const FString& 
 			if (TrackingTags.Find(ATKey) == nullptr)
 			{
 				TrackingTags.Add(ATKey, Key);
+				UE_LOG(LogSpatialLatencyTracing, Log, TEXT("(%s) : Add ActorTag (%s,%s) for trace"), *WorkerId, *Actor->GetName(), *Target);
 				return true;
 			}
-			UE_LOG(LogSpatialLatencyTracing, Warning, TEXT("(%s) : ActorTag already exists for trace"), *WorkerId);
+			UE_LOG(LogSpatialLatencyTracing, Warning, TEXT("(%s) : ActorTag already exists for trace"), *WorkerId, *Actor->GetName(), *Target);
 		}
 		break;
 		}
