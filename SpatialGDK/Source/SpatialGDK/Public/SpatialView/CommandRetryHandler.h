@@ -19,29 +19,30 @@ struct FRetryData
 	float MaximumRetryTimeS;
 	uint32 TimeoutMillis;
 
-	FRetryData Advance() const
+	void RetryAndBackOff()
 	{
-		return { Retries - 1, FMath::Min(BackOffTimeS + BackOffIncrementS, MaximumRetryTimeS), BackOffIncrementS * 2, MaximumRetryTimeS,
-				 TimeoutMillis };
+		--Retries;
+		BackOffTimeS = FMath::Min(BackOffTimeS + BackOffIncrementS, MaximumRetryTimeS);
+		BackOffIncrementS *= 2;
 	}
+
+	void RetryWithoutBackOff() { --Retries; }
+
+	void StopRetries() { Retries = -1; }
 };
 
-// Will retry until a successful response is received.
+// Will retry until it's done or no longer makes sense.
 constexpr FRetryData RETRY_UNTIL_COMPLETE = { TNumericLimits<int32>::Max(), 0, 0.1f, 5.0f, 0 };
 
-template <typename T, typename CommandData>
+template <typename T>
 class TCommandRetryHandler
 {
 public:
-	explicit TCommandRetryHandler(WorkerView* Worker)
-		: TimeElapsedS(0.0)
-		, Worker(Worker)
-	{
-	}
+	using DataType = typename T::CommandData;
 
-	void ProcessOps(float TimeAdvancedS)
+	void ProcessOps(float TimeAdvancedS, TArray<Worker_Op>& WorkerMessages, WorkerView& View)
 	{
-		for (auto& Op : Worker->GetViewDelta().GetWorkerMessages())
+		for (auto& Op : WorkerMessages)
 		{
 			if (T::CanHandleOp(Op))
 			{
@@ -60,22 +61,22 @@ public:
 				return;
 			}
 
-			SendRequest(Command.RequestId, MoveTemp(Command.Data), Command.Retry);
+			SendRequest(Command.RequestId, MoveTemp(Command.Data), Command.Retry, View);
 
 			CommandsToSendHeap.HeapPopDiscard(CompareByTimeToSend);
 		}
 	}
 
-	void SendRequest(Worker_RequestId RequestId, CommandData Data, const FRetryData& RetryData)
+	void SendRequest(Worker_RequestId RequestId, DataType Data, const FRetryData& RetryData, WorkerView& View)
 	{
 		if (RetryData.Retries > 0)
 		{
-			static_cast<T*>(this)->SendCommandRequest(RequestId, Data, RetryData.TimeoutMillis);
+			T::SendCommandRequest(RequestId, Data, RetryData.TimeoutMillis, View);
 			RequestsInFlight.Emplace(RequestId, FDataInFlight{ MoveTemp(Data), RetryData });
 		}
 		else
 		{
-			static_cast<T*>(this)->SendCommandRequest(RequestId, MoveTemp(Data), RetryData.TimeoutMillis);
+			T::SendCommandRequest(RequestId, MoveTemp(Data), RetryData.TimeoutMillis, View);
 		}
 	}
 
@@ -83,14 +84,14 @@ protected:
 	struct FDataToSend
 	{
 		Worker_RequestId RequestId;
-		CommandData Data;
+		DataType Data;
 		double TimeToSend;
 		FRetryData Retry;
 	};
 
 	struct FDataInFlight
 	{
-		CommandData Data;
+		DataType Data;
 		FRetryData Retry;
 	};
 
@@ -98,7 +99,7 @@ protected:
 
 	void HandleResponse(Worker_Op& Op)
 	{
-		Worker_RequestId RequestId = T::GetRequestId(Op);
+		Worker_RequestId& RequestId = T::GetRequestId(Op);
 		auto It = RequestsInFlight.CreateKeyIterator(RequestId);
 		if (!It)
 		{
@@ -107,22 +108,22 @@ protected:
 
 		FDataInFlight& Data = It.Value();
 
-		// Enqueue a retry if appropriate.
-		if (T::CanRetry(Op, Data.Retry) && Data.Retry.Retries >= 0)
+		// Update the retry data and enqueue a retry if appropriate.
+		T::UpdateRetries(Op, Data.Retry);
+		if (Data.Retry.Retries >= 0)
 		{
-			// Effectively remove the op by setting its type to something invalid.
-			Op.op_type = 0;
+			// Effectively remove the op by setting its request ID to something invalid.
+			RequestId *= -1;
 			CommandsToSendHeap.HeapPush(FDataToSend{ RequestId, MoveTemp(Data.Data), TimeElapsedS + Data.Retry.BackOffTimeS, Data.Retry },
 										CompareByTimeToSend);
 		}
 
-		RequestsInFlight.Remove(RequestId);
+		It.RemoveCurrent();
 	}
 
-	double TimeElapsedS;
+	double TimeElapsedS = 0.0;
 	TArray<FDataToSend> CommandsToSendHeap;
 	TMap<Worker_RequestId_Key, FDataInFlight> RequestsInFlight;
-	WorkerView* Worker;
 };
 
 } // namespace SpatialGDK

@@ -8,11 +8,6 @@ namespace SpatialGDK
 ViewCoordinator::ViewCoordinator(TUniquePtr<AbstractConnectionHandler> ConnectionHandler)
 	: ConnectionHandler(MoveTemp(ConnectionHandler))
 	, NextRequestId(1)
-	, ReserveEntityIdRetryHandler(&View)
-	, CreateEntityRetryHandler(&View)
-	, DeleteEntityRetryHandler(&View)
-	, EntityQueryRetryHandler(&View)
-	, EntityCommandRetryHandler(&View)
 {
 }
 
@@ -37,11 +32,12 @@ void ViewCoordinator::Advance(float DeltaTimeS)
 		SubviewToAdvance->Advance(View.GetViewDelta());
 	}
 
-	ReserveEntityIdRetryHandler.ProcessOps(DeltaTimeS);
-	CreateEntityRetryHandler.ProcessOps(DeltaTimeS);
-	DeleteEntityRetryHandler.ProcessOps(DeltaTimeS);
-	EntityQueryRetryHandler.ProcessOps(DeltaTimeS);
-	EntityCommandRetryHandler.ProcessOps(DeltaTimeS);
+	auto& WorkerMessages = View.GetViewDelta().GetWorkerMessages();
+	ReserveEntityIdRetryHandler.ProcessOps(DeltaTimeS, WorkerMessages, View);
+	CreateEntityRetryHandler.ProcessOps(DeltaTimeS, WorkerMessages, View);
+	DeleteEntityRetryHandler.ProcessOps(DeltaTimeS, WorkerMessages, View);
+	EntityQueryRetryHandler.ProcessOps(DeltaTimeS, WorkerMessages, View);
+	EntityCommandRetryHandler.ProcessOps(DeltaTimeS, WorkerMessages, View);
 }
 
 const ViewDelta& ViewCoordinator::GetViewDelta() const
@@ -143,32 +139,32 @@ void ViewCoordinator::SendLogMessage(Worker_LogLevel Level, const FName& LoggerN
 
 Worker_RequestId ViewCoordinator::SendReserveEntityIdsRequest(uint32 NumberOfEntityIds, FRetryData RetryData)
 {
-	ReserveEntityIdRetryHandler.SendRequest(NextRequestId, NumberOfEntityIds, RetryData);
+	ReserveEntityIdRetryHandler.SendRequest(NextRequestId, NumberOfEntityIds, RetryData, View);
 	return NextRequestId++;
 }
 
 Worker_RequestId ViewCoordinator::SendCreateEntityRequest(TArray<ComponentData> EntityComponents, TOptional<Worker_EntityId> EntityId,
 														  FRetryData RetryData)
 {
-	CreateEntityRetryHandler.SendRequest(NextRequestId, { MoveTemp(EntityComponents), EntityId }, RetryData);
+	CreateEntityRetryHandler.SendRequest(NextRequestId, { MoveTemp(EntityComponents), EntityId }, RetryData, View);
 	return NextRequestId++;
 }
 
 Worker_RequestId ViewCoordinator::SendDeleteEntityRequest(Worker_EntityId EntityId, FRetryData RetryData)
 {
-	DeleteEntityRetryHandler.SendRequest(NextRequestId, EntityId, RetryData);
+	DeleteEntityRetryHandler.SendRequest(NextRequestId, EntityId, RetryData, View);
 	return NextRequestId++;
 }
 
 Worker_RequestId ViewCoordinator::SendEntityQueryRequest(EntityQuery Query, FRetryData RetryData)
 {
-	EntityQueryRetryHandler.SendRequest(NextRequestId, MoveTemp(Query), RetryData);
+	EntityQueryRetryHandler.SendRequest(NextRequestId, MoveTemp(Query), RetryData, View);
 	return NextRequestId++;
 }
 
 Worker_RequestId ViewCoordinator::SendEntityCommandRequest(Worker_EntityId EntityId, CommandRequest Request, FRetryData RetryData)
 {
-	EntityCommandRetryHandler.SendRequest(NextRequestId, { EntityId, MoveTemp(Request) }, RetryData);
+	EntityCommandRetryHandler.SendRequest(NextRequestId, { EntityId, MoveTemp(Request) }, RetryData, View);
 	return NextRequestId++;
 }
 
