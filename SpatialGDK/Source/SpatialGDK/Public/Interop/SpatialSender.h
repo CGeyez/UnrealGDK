@@ -108,10 +108,6 @@ public:
 	void SendClientEndpointReadyUpdate(Worker_EntityId EntityId);
 	void SendServerEndpointReadyUpdate(Worker_EntityId EntityId);
 
-	void EnqueueRetryRPC(TSharedRef<FReliableRPCForRetry> RetryRPC);
-	void FlushRetryRPCs();
-	void RetryReliableRPC(TSharedRef<FReliableRPCForRetry> RetryRPC);
-
 	void RegisterChannelForPositionUpdate(USpatialActorChannel* Channel);
 	void ProcessPositionUpdates();
 

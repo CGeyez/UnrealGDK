@@ -865,54 +865,6 @@ void USpatialSender::TrackRPC(AActor* Actor, UFunction* Function, const RPCPaylo
 }
 #endif
 
-void USpatialSender::EnqueueRetryRPC(TSharedRef<FReliableRPCForRetry> RetryRPC)
-{
-	RetryRPCs.Add(RetryRPC);
-}
-
-void USpatialSender::FlushRetryRPCs()
-{
-	SCOPE_CYCLE_COUNTER(STAT_SpatialSenderFlushRetryRPCs);
-
-	// Retried RPCs are sorted by their index.
-	RetryRPCs.Sort([](const TSharedRef<FReliableRPCForRetry>& A, const TSharedRef<FReliableRPCForRetry>& B) {
-		return A->RetryIndex < B->RetryIndex;
-	});
-	for (auto& RetryRPC : RetryRPCs)
-	{
-		RetryReliableRPC(RetryRPC);
-	}
-	RetryRPCs.Empty();
-}
-
-void USpatialSender::RetryReliableRPC(TSharedRef<FReliableRPCForRetry> RetryRPC)
-{
-	if (!RetryRPC->TargetObject.IsValid())
-	{
-		// Target object was destroyed before the RPC could be (re)sent
-		return;
-	}
-
-	UObject* TargetObject = RetryRPC->TargetObject.Get();
-	FUnrealObjectRef TargetObjectRef = PackageMap->GetUnrealObjectRefFromObject(TargetObject);
-	if (TargetObjectRef == FUnrealObjectRef::UNRESOLVED_OBJECT_REF)
-	{
-		UE_LOG(LogSpatialSender, Warning, TEXT("Actor %s got unresolved (?) before RPC %s could be retried. This RPC will not be sent."),
-			   *TargetObject->GetName(), *RetryRPC->Function->GetName());
-		return;
-	}
-
-	Worker_CommandRequest CommandRequest = CreateRetryRPCCommandRequest(*RetryRPC, TargetObjectRef.Offset);
-	Worker_RequestId RequestId =
-		Connection->SendCommandRequest(TargetObjectRef.Entity, &CommandRequest, SpatialConstants::UNREAL_RPC_ENDPOINT_COMMAND_ID);
-
-	// The number of attempts is used to determine the delay in case the command times out and we need to resend it.
-	RetryRPC->Attempts++;
-	UE_LOG(LogSpatialSender, Verbose, TEXT("Sending reliable command request (entity: %lld, component: %d, function: %s, attempt: %d)"),
-		   TargetObjectRef.Entity, RetryRPC->ComponentId, *RetryRPC->Function->GetName(), RetryRPC->Attempts);
-	Receiver->AddPendingReliableRPC(RequestId, RetryRPC);
-}
-
 void USpatialSender::RegisterChannelForPositionUpdate(USpatialActorChannel* Channel)
 {
 	ChannelsToUpdatePosition.Add(Channel);

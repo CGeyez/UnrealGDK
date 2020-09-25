@@ -150,8 +150,6 @@ private:
 
 	FRPCErrorInfo ApplyRPCInternal(UObject* TargetObject, UFunction* Function, const FPendingRPCParams& PendingRPCParams);
 
-	void ReceiveCommandResponse(const Worker_CommandResponseOp& Op);
-
 	bool IsReceivedEntityTornOff(Worker_EntityId EntityId);
 
 	void ProcessOrQueueIncomingRPC(const FUnrealObjectRef& InTargetObjectRef, SpatialGDK::RPCPayload InPayload);

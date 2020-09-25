@@ -1970,11 +1970,11 @@ void USpatialReceiver::OnCommandRequest(const Worker_CommandRequestOp& Op)
 	UFunction* Function = Info.RPCs[Payload.Index];
 	const FRPCInfo& RPCInfo = ClassInfoManager->GetRPCInfo(TargetObject, Function);
 
-	UE_LOG(LogSpatialReceiver, Verbose, TEXT("Received command request (entity: %lld, component: %d, function: %s)"), Op.entity_id,
+	UE_LOG(LogSpatialReceiver, Warning, TEXT("Received command request (entity: %lld, component: %d, function: %s)"), Op.entity_id,
 		   Op.request.component_id, *Function->GetName());
 
 	ProcessOrQueueIncomingRPC(ObjectRef, MoveTemp(Payload));
-	Sender->SendEmptyCommandResponse(Op.request.component_id, CommandIndex, Op.request_id);
+	//Sender->SendEmptyCommandResponse(Op.request.component_id, CommandIndex, Op.request_id);
 }
 
 void USpatialReceiver::OnCommandResponse(const Worker_CommandResponseOp& Op)
@@ -1983,80 +1983,11 @@ void USpatialReceiver::OnCommandResponse(const Worker_CommandResponseOp& Op)
 	if (Op.response.component_id == SpatialConstants::PLAYER_SPAWNER_COMPONENT_ID)
 	{
 		NetDriver->PlayerSpawner->ReceivePlayerSpawnResponseOnClient(Op);
-		return;
 	}
-	else if (Op.response.component_id == SpatialConstants::SERVER_WORKER_COMPONENT_ID)
+
+	if (Op.response.component_id == SpatialConstants::SERVER_WORKER_COMPONENT_ID)
 	{
 		NetDriver->PlayerSpawner->ReceiveForwardPlayerSpawnResponse(Op);
-		return;
-	}
-
-	ReceiveCommandResponse(Op);
-}
-
-void USpatialReceiver::FlushRetryRPCs()
-{
-	Sender->FlushRetryRPCs();
-}
-
-void USpatialReceiver::ReceiveCommandResponse(const Worker_CommandResponseOp& Op)
-{
-	TSharedRef<FReliableRPCForRetry>* ReliableRPCPtr = PendingReliableRPCs.Find(Op.request_id);
-	if (ReliableRPCPtr == nullptr)
-	{
-		// We received a response for some other command, ignore.
-		return;
-	}
-
-	TSharedRef<FReliableRPCForRetry> ReliableRPC = *ReliableRPCPtr;
-	PendingReliableRPCs.Remove(Op.request_id);
-	if (Op.status_code != WORKER_STATUS_CODE_SUCCESS)
-	{
-		bool bCanRetry = false;
-
-		// Only attempt to retry if the error code indicates it makes sense too
-		if ((Op.status_code == WORKER_STATUS_CODE_TIMEOUT || Op.status_code == WORKER_STATUS_CODE_NOT_FOUND)
-			&& (ReliableRPC->Attempts < SpatialConstants::MAX_NUMBER_COMMAND_ATTEMPTS))
-		{
-			bCanRetry = true;
-		}
-		// Don't apply the retry limit on auth lost, as it should eventually succeed
-		else if (Op.status_code == WORKER_STATUS_CODE_AUTHORITY_LOST)
-		{
-			bCanRetry = true;
-		}
-
-		if (bCanRetry)
-		{
-			float WaitTime = SpatialConstants::GetCommandRetryWaitTimeSeconds(ReliableRPC->Attempts);
-			UE_LOG(LogSpatialReceiver, Log, TEXT("%s: retrying in %f seconds. Error code: %d Message: %s"),
-				   *ReliableRPC->Function->GetName(), WaitTime, (int)Op.status_code, UTF8_TO_TCHAR(Op.message));
-
-			if (!ReliableRPC->TargetObject.IsValid())
-			{
-				UE_LOG(LogSpatialReceiver, Warning, TEXT("%s: target object was destroyed before we could deliver the RPC."),
-					   *ReliableRPC->Function->GetName());
-				return;
-			}
-
-			// Queue retry
-			FTimerHandle RetryTimer;
-			TimerManager->SetTimer(
-				RetryTimer,
-				[WeakSender = TWeakObjectPtr<USpatialSender>(Sender), ReliableRPC]() {
-					if (USpatialSender* SpatialSender = WeakSender.Get())
-					{
-						SpatialSender->EnqueueRetryRPC(ReliableRPC);
-					}
-				},
-				WaitTime, false);
-		}
-		else
-		{
-			UE_LOG(LogSpatialReceiver, Error, TEXT("%s: failed too many times, giving up (%u attempts). Error code: %d Message: %s"),
-				   *ReliableRPC->Function->GetName(), SpatialConstants::MAX_NUMBER_COMMAND_ATTEMPTS, (int)Op.status_code,
-				   UTF8_TO_TCHAR(Op.message));
-		}
 	}
 }
 

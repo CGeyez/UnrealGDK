@@ -109,9 +109,8 @@ Worker_RequestId USpatialWorkerConnection::SendCommandRequest(Worker_EntityId En
 	check(Coordinator.IsValid());
 	return Coordinator->SendEntityCommandRequest(
 		EntityId, SpatialGDK::CommandRequest(SpatialGDK::OwningCommandRequestPtr(Request->schema_type), Request->component_id,
-											 Request->command_index));
+											 Request->command_index), {5, 0, 0.5, 1, 100});
 }
-
 void USpatialWorkerConnection::SendCommandResponse(Worker_RequestId RequestId, Worker_CommandResponse* Response)
 {
 	check(Coordinator.IsValid());
