@@ -2,7 +2,6 @@
 
 #include "SpatialView/SubView.h"
 
-
 #include "SpatialView/EntityComponentTypes.h"
 #include "Utils/ComponentFactory.h"
 
@@ -71,7 +70,7 @@ bool FSubView::HasComponent(const Worker_EntityId EntityId, const Worker_Compone
 {
 	const EntityViewElement* Entity = View->Find(EntityId);
 	check(Entity);
-	return Entity->Components.FindByPredicate(ComponentIdEquality{ComponentId});
+	return Entity->Components.FindByPredicate(ComponentIdEquality{ ComponentId });
 }
 
 bool FSubView::HasAuthority(const Worker_EntityId EntityId, const Worker_ComponentId ComponentId) const
@@ -82,7 +81,7 @@ bool FSubView::HasAuthority(const Worker_EntityId EntityId, const Worker_Compone
 }
 
 FDispatcherRefreshCallback FSubView::CreateComponentExistenceRefreshCallback(FDispatcher& Dispatcher, const Worker_ComponentId ComponentId,
-                                                                             const FComponentChangeRefreshPredicate& RefreshPredicate)
+																			 const FComponentChangeRefreshPredicate& RefreshPredicate)
 {
 	return [ComponentId, &Dispatcher, RefreshPredicate](const FRefreshCallback& Callback) {
 		Dispatcher.RegisterComponentAddedCallback(ComponentId, [RefreshPredicate, Callback](const FEntityComponentChange& Change) {

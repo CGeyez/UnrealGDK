@@ -11,6 +11,9 @@
 #include <WorkerSDK/improbable/c_schema.h>
 #include <WorkerSDK/improbable/c_worker.h>
 
+#include "Schema/ClientEndpoint.h"
+#include "Schema/MulticastRPCs.h"
+#include "Schema/ServerEndpoint.h"
 #include "SpatialView/SubView.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogSpatialRPCService, Log, All);
@@ -23,6 +26,13 @@ DECLARE_DELEGATE_RetVal_ThreeParams(bool, ExtractRPCDelegate, Worker_EntityId, E
 
 namespace SpatialGDK
 {
+struct RPCComponents
+{
+	ClientEndpoint Client;
+	ServerEndpoint Server;
+	MulticastRPCs Multicast;
+};
+
 struct EntityRPCType
 {
 	EntityRPCType(Worker_EntityId EntityId, ERPCType Type)
@@ -59,8 +69,7 @@ enum class EPushRPCResult : uint8
 class SPATIALGDK_API SpatialRPCService
 {
 public:
-	SpatialRPCService(ExtractRPCDelegate InExtractRPCCallback, const FSubView* InSubView,
-					  USpatialLatencyTracer* InSpatialLatencyTracer);
+	SpatialRPCService(ExtractRPCDelegate InExtractRPCCallback, const FSubView* InSubView, USpatialLatencyTracer* InSpatialLatencyTracer);
 
 	EPushRPCResult PushRPC(Worker_EntityId EntityId, ERPCType Type, RPCPayload Payload, bool bCreatedEntity);
 	void PushOverflowedRPCs();
@@ -106,6 +115,9 @@ private:
 	ExtractRPCDelegate ExtractRPCCallback;
 	const FSubView* SubView;
 	USpatialLatencyTracer* SpatialLatencyTracer;
+
+	// Deserialized state store for RPC components.
+	TMap<Worker_EntityId_Key, RPCComponents> DataStore;
 
 	// This is local, not written into schema.
 	TMap<Worker_EntityId_Key, uint64> LastSeenMulticastRPCIds;
