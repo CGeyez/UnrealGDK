@@ -5,7 +5,9 @@
 namespace SpatialGDK
 {
 MulticastRPCs::MulticastRPCs(const Worker_ComponentData& Data)
-	: MulticastRPCs(Data.schema_type) {}
+	: MulticastRPCs(Data.schema_type)
+{
+}
 
 MulticastRPCs::MulticastRPCs(Schema_ComponentData* Data)
 	: MulticastRPCBuffer(ERPCType::NetMulticast)

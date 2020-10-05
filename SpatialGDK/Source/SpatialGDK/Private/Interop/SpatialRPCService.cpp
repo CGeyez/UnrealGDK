@@ -29,15 +29,11 @@ void SpatialRPCService::Advance()
 		switch (Delta.Type)
 		{
 		case EntityDelta::UPDATE:
-			{
-				for (const ComponentChange& Change : Delta.ComponentUpdates)
-				{
-				}
-				for (const ComponentChange& Change : Delta.ComponentsRefreshed)
-				{
-				}
-				break;
-			}
+		{
+			for (const ComponentChange& Change : Delta.ComponentUpdates) {}
+			for (const ComponentChange& Change : Delta.ComponentsRefreshed) {}
+			break;
+		}
 		case EntityDelta::ADD:
 			PopulateDataStore(Delta.EntityId);
 			bRefresh = true;
@@ -54,13 +50,12 @@ void SpatialRPCService::Advance()
 			break;
 		}
 
-		if (bRefresh)
-		{
-		}
+		if (bRefresh) {}
 	}
 }
 
-EPushRPCResult SpatialRPCService::PushRPC(const Worker_EntityId EntityId, const ERPCType Type, RPCPayload Payload, const bool bCreatedEntity)
+EPushRPCResult SpatialRPCService::PushRPC(const Worker_EntityId EntityId, const ERPCType Type, RPCPayload Payload,
+										  const bool bCreatedEntity)
 {
 	const EntityRPCType EntityType = EntityRPCType(EntityId, Type);
 
@@ -89,7 +84,8 @@ EPushRPCResult SpatialRPCService::PushRPC(const Worker_EntityId EntityId, const 
 	return Result;
 }
 
-EPushRPCResult SpatialRPCService::PushRPCInternal(const Worker_EntityId EntityId, const ERPCType Type, RPCPayload&& Payload, const bool bCreatedEntity)
+EPushRPCResult SpatialRPCService::PushRPCInternal(const Worker_EntityId EntityId, const ERPCType Type, RPCPayload&& Payload,
+												  const bool bCreatedEntity)
 {
 	const Worker_ComponentId RingBufferComponentId = RPCRingBufferUtils::GetRingBufferComponentId(Type);
 
@@ -720,7 +716,7 @@ void SpatialRPCService::PopulateDataStore(const Worker_EntityId EntityId)
 }
 
 bool SpatialRPCService::ApplyComponentUpdate(const Worker_EntityId EntityId, const Worker_ComponentId ComponentId,
-                                                          Schema_ComponentUpdate* Update)
+											 Schema_ComponentUpdate* Update)
 {
 	switch (ComponentId)
 	{

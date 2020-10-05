@@ -4,7 +4,10 @@
 
 namespace SpatialGDK
 {
-ClientEndpoint::ClientEndpoint(const Worker_ComponentData& Data) : ClientEndpoint(Data.schema_type) {}
+ClientEndpoint::ClientEndpoint(const Worker_ComponentData& Data)
+	: ClientEndpoint(Data.schema_type)
+{
+}
 
 ClientEndpoint::ClientEndpoint(Schema_ComponentData* Data)
 	: ReliableRPCBuffer(ERPCType::ServerReliable)
