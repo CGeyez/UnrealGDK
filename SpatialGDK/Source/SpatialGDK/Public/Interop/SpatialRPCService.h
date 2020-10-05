@@ -11,6 +11,8 @@
 #include <WorkerSDK/improbable/c_schema.h>
 #include <WorkerSDK/improbable/c_worker.h>
 
+#include "SpatialView/SubView.h"
+
 DECLARE_LOG_CATEGORY_EXTERN(LogSpatialRPCService, Log, All);
 
 class USpatialLatencyTracer;
@@ -57,8 +59,8 @@ enum class EPushRPCResult : uint8
 class SPATIALGDK_API SpatialRPCService
 {
 public:
-	SpatialRPCService(ExtractRPCDelegate ExtractRPCCallback, const USpatialStaticComponentView* View,
-					  USpatialLatencyTracer* SpatialLatencyTracer);
+	SpatialRPCService(ExtractRPCDelegate InExtractRPCCallback, const FSubView* InSubView,
+					  USpatialLatencyTracer* InSpatialLatencyTracer);
 
 	EPushRPCResult PushRPC(Worker_EntityId EntityId, ERPCType Type, RPCPayload Payload, bool bCreatedEntity);
 	void PushOverflowedRPCs();
@@ -101,9 +103,8 @@ private:
 	Schema_ComponentUpdate* GetOrCreateComponentUpdate(EntityComponentId EntityComponentIdPair);
 	Schema_ComponentData* GetOrCreateComponentData(EntityComponentId EntityComponentIdPair);
 
-private:
 	ExtractRPCDelegate ExtractRPCCallback;
-	const USpatialStaticComponentView* View;
+	const FSubView* SubView;
 	USpatialLatencyTracer* SpatialLatencyTracer;
 
 	// This is local, not written into schema.

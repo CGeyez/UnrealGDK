@@ -12,11 +12,11 @@ DEFINE_LOG_CATEGORY(LogSpatialRPCService);
 
 namespace SpatialGDK
 {
-SpatialRPCService::SpatialRPCService(ExtractRPCDelegate ExtractRPCCallback, const USpatialStaticComponentView* View,
-									 USpatialLatencyTracer* SpatialLatencyTracer)
-	: ExtractRPCCallback(ExtractRPCCallback)
-	, View(View)
-	, SpatialLatencyTracer(SpatialLatencyTracer)
+SpatialRPCService::SpatialRPCService(const ExtractRPCDelegate InExtractRPCCallback, const FSubView* InSubView,
+                                     USpatialLatencyTracer* InSpatialLatencyTracer)
+	: ExtractRPCCallback(InExtractRPCCallback)
+	, SubView(InSubView)
+	, SpatialLatencyTracer(InSpatialLatencyTracer)
 {
 }
 

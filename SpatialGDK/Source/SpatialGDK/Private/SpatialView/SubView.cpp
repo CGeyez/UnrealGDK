@@ -2,6 +2,8 @@
 
 #include "SpatialView/SubView.h"
 
+
+#include "SpatialView/EntityComponentTypes.h"
 #include "Utils/ComponentFactory.h"
 
 namespace SpatialGDK
@@ -65,8 +67,22 @@ const EntityView& FSubView::GetView() const
 	return *View;
 }
 
+bool FSubView::HasComponent(const Worker_EntityId EntityId, const Worker_ComponentId ComponentId) const
+{
+	const EntityViewElement* Entity = View->Find(EntityId);
+	check(Entity);
+	return Entity->Components.FindByPredicate(ComponentIdEquality{ComponentId});
+}
+
+bool FSubView::HasAuthority(const Worker_EntityId EntityId, const Worker_ComponentId ComponentId) const
+{
+	const EntityViewElement* Entity = View->Find(EntityId);
+	check(Entity);
+	return Entity->Authority.Contains(ComponentId);
+}
+
 FDispatcherRefreshCallback FSubView::CreateComponentExistenceRefreshCallback(FDispatcher& Dispatcher, const Worker_ComponentId ComponentId,
-																			 const FComponentChangeRefreshPredicate& RefreshPredicate)
+                                                                             const FComponentChangeRefreshPredicate& RefreshPredicate)
 {
 	return [ComponentId, &Dispatcher, RefreshPredicate](const FRefreshCallback& Callback) {
 		Dispatcher.RegisterComponentAddedCallback(ComponentId, [RefreshPredicate, Callback](const FEntityComponentChange& Change) {
