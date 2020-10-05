@@ -274,6 +274,9 @@ bool FSpatialGDKEditorModule::ForEveryServerWorker(TFunction<void(const FName&, 
 			AdditionalServerIndex++;
 		}
 
+		Function(SpatialConstants::RoutingWorkerType, AdditionalServerIndex);
+		++AdditionalServerIndex;
+
 		return true;
 	}
 
