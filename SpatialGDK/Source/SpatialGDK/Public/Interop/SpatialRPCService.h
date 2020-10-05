@@ -70,6 +70,7 @@ class SPATIALGDK_API SpatialRPCService
 {
 public:
 	SpatialRPCService(ExtractRPCDelegate InExtractRPCCallback, const FSubView* InSubView, USpatialLatencyTracer* InSpatialLatencyTracer);
+	void Advance();
 
 	EPushRPCResult PushRPC(Worker_EntityId EntityId, ERPCType Type, RPCPayload Payload, bool bCreatedEntity);
 	void PushOverflowedRPCs();
@@ -111,6 +112,8 @@ private:
 
 	Schema_ComponentUpdate* GetOrCreateComponentUpdate(EntityComponentId EntityComponentIdPair);
 	Schema_ComponentData* GetOrCreateComponentData(EntityComponentId EntityComponentIdPair);
+	void PopulateDataStore(Worker_EntityId EntityId);
+	bool ApplyComponentUpdate(Worker_EntityId EntityId, Worker_ComponentId ComponentId, Schema_ComponentUpdate* Update);
 
 	ExtractRPCDelegate ExtractRPCCallback;
 	const FSubView* SubView;

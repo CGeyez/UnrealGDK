@@ -20,9 +20,49 @@ SpatialRPCService::SpatialRPCService(const ExtractRPCDelegate InExtractRPCCallba
 {
 }
 
-EPushRPCResult SpatialRPCService::PushRPC(Worker_EntityId EntityId, ERPCType Type, RPCPayload Payload, bool bCreatedEntity)
+void SpatialRPCService::Advance()
 {
-	EntityRPCType EntityType = EntityRPCType(EntityId, Type);
+	const FSubViewDelta& SubViewDelta = SubView->GetViewDelta();
+	for (const EntityDelta& Delta : SubViewDelta.EntityDeltas)
+	{
+		bool bRefresh = false;
+		switch (Delta.Type)
+		{
+		case EntityDelta::UPDATE:
+			{
+				for (const ComponentChange& Change : Delta.ComponentUpdates)
+				{
+				}
+				for (const ComponentChange& Change : Delta.ComponentsRefreshed)
+				{
+				}
+				break;
+			}
+		case EntityDelta::ADD:
+			PopulateDataStore(Delta.EntityId);
+			bRefresh = true;
+			break;
+		case EntityDelta::REMOVE:
+			DataStore.Remove(Delta.EntityId);
+			break;
+		case EntityDelta::TEMPORARILY_REMOVED:
+			DataStore.Remove(Delta.EntityId);
+			PopulateDataStore(Delta.EntityId);
+			bRefresh = true;
+			break;
+		default:
+			break;
+		}
+
+		if (bRefresh)
+		{
+		}
+	}
+}
+
+EPushRPCResult SpatialRPCService::PushRPC(const Worker_EntityId EntityId, const ERPCType Type, RPCPayload Payload, const bool bCreatedEntity)
+{
+	const EntityRPCType EntityType = EntityRPCType(EntityId, Type);
 
 	EPushRPCResult Result = EPushRPCResult::Success;
 
@@ -49,7 +89,7 @@ EPushRPCResult SpatialRPCService::PushRPC(Worker_EntityId EntityId, ERPCType Typ
 	return Result;
 }
 
-EPushRPCResult SpatialRPCService::PushRPCInternal(Worker_EntityId EntityId, ERPCType Type, RPCPayload&& Payload, bool bCreatedEntity)
+EPushRPCResult SpatialRPCService::PushRPCInternal(const Worker_EntityId EntityId, const ERPCType Type, RPCPayload&& Payload, const bool bCreatedEntity)
 {
 	const Worker_ComponentId RingBufferComponentId = RPCRingBufferUtils::GetRingBufferComponentId(Type);
 
@@ -208,7 +248,7 @@ void SpatialRPCService::PushOverflowedRPCs()
 	}
 }
 
-void SpatialRPCService::ClearOverflowedRPCs(Worker_EntityId EntityId)
+void SpatialRPCService::ClearOverflowedRPCs(const Worker_EntityId EntityId)
 {
 	for (uint8 RPCType = static_cast<uint8>(ERPCType::ClientReliable); RPCType <= static_cast<uint8>(ERPCType::NetMulticast); RPCType++)
 	{
@@ -218,11 +258,11 @@ void SpatialRPCService::ClearOverflowedRPCs(Worker_EntityId EntityId)
 
 TArray<SpatialRPCService::UpdateToSend> SpatialRPCService::GetRPCsAndAcksToSend()
 {
-	TArray<SpatialRPCService::UpdateToSend> UpdatesToSend;
+	TArray<UpdateToSend> UpdatesToSend;
 
 	for (auto& It : PendingComponentUpdatesToSend)
 	{
-		SpatialRPCService::UpdateToSend& UpdateToSend = UpdatesToSend.AddZeroed_GetRef();
+		UpdateToSend& UpdateToSend = UpdatesToSend.AddZeroed_GetRef();
 		UpdateToSend.EntityId = It.Key.EntityId;
 		UpdateToSend.Update.component_id = It.Key.ComponentId;
 		UpdateToSend.Update.schema_type = It.Value;
@@ -238,7 +278,7 @@ TArray<SpatialRPCService::UpdateToSend> SpatialRPCService::GetRPCsAndAcksToSend(
 	return UpdatesToSend;
 }
 
-TArray<FWorkerComponentData> SpatialRPCService::GetRPCComponentsOnEntityCreation(Worker_EntityId EntityId)
+TArray<FWorkerComponentData> SpatialRPCService::GetRPCComponentsOnEntityCreation(const Worker_EntityId EntityId)
 {
 	static Worker_ComponentId EndpointComponentIds[] = { SpatialConstants::CLIENT_ENDPOINT_COMPONENT_ID,
 														 SpatialConstants::SERVER_ENDPOINT_COMPONENT_ID,
@@ -287,7 +327,7 @@ TArray<FWorkerComponentData> SpatialRPCService::GetRPCComponentsOnEntityCreation
 	return Components;
 }
 
-void SpatialRPCService::ExtractRPCsForEntity(Worker_EntityId EntityId, Worker_ComponentId ComponentId)
+void SpatialRPCService::ExtractRPCsForEntity(const Worker_EntityId EntityId, const Worker_ComponentId ComponentId)
 {
 	switch (ComponentId)
 	{
@@ -314,7 +354,7 @@ void SpatialRPCService::ExtractRPCsForEntity(Worker_EntityId EntityId, Worker_Co
 	}
 }
 
-void SpatialRPCService::OnCheckoutMulticastRPCComponentOnEntity(Worker_EntityId EntityId)
+void SpatialRPCService::OnCheckoutMulticastRPCComponentOnEntity(const Worker_EntityId EntityId)
 {
 	const MulticastRPCs& Component = DataStore[EntityId].Multicast;
 
@@ -331,12 +371,12 @@ void SpatialRPCService::OnCheckoutMulticastRPCComponentOnEntity(Worker_EntityId 
 	LastSeenMulticastRPCIds.Add(EntityId, Component.MulticastRPCBuffer.LastSentRPCId);
 }
 
-void SpatialRPCService::OnRemoveMulticastRPCComponentForEntity(Worker_EntityId EntityId)
+void SpatialRPCService::OnRemoveMulticastRPCComponentForEntity(const Worker_EntityId EntityId)
 {
 	LastSeenMulticastRPCIds.Remove(EntityId);
 }
 
-void SpatialRPCService::OnEndpointAuthorityGained(Worker_EntityId EntityId, Worker_ComponentId ComponentId)
+void SpatialRPCService::OnEndpointAuthorityGained(const Worker_EntityId EntityId, const Worker_ComponentId ComponentId)
 {
 	switch (ComponentId)
 	{
@@ -390,7 +430,7 @@ void SpatialRPCService::OnEndpointAuthorityGained(Worker_EntityId EntityId, Work
 	}
 }
 
-void SpatialRPCService::OnEndpointAuthorityLost(Worker_EntityId EntityId, Worker_ComponentId ComponentId)
+void SpatialRPCService::OnEndpointAuthorityLost(const Worker_EntityId EntityId, const Worker_ComponentId ComponentId)
 {
 	switch (ComponentId)
 	{
@@ -430,10 +470,10 @@ void SpatialRPCService::OnEndpointAuthorityLost(Worker_EntityId EntityId, Worker
 	}
 }
 
-void SpatialRPCService::ExtractRPCsForType(Worker_EntityId EntityId, ERPCType Type)
+void SpatialRPCService::ExtractRPCsForType(const Worker_EntityId EntityId, const ERPCType Type)
 {
 	uint64 LastSeenRPCId;
-	EntityRPCType EntityTypePair = EntityRPCType(EntityId, Type);
+	const EntityRPCType EntityTypePair = EntityRPCType(EntityId, Type);
 
 	if (Type == ERPCType::NetMulticast)
 	{
@@ -518,14 +558,14 @@ void SpatialRPCService::ExtractRPCsForType(Worker_EntityId EntityId, ERPCType Ty
 	}
 }
 
-void SpatialRPCService::IncrementAckedRPCID(Worker_EntityId EntityId, ERPCType Type)
+void SpatialRPCService::IncrementAckedRPCID(const Worker_EntityId EntityId, const ERPCType Type)
 {
 	if (Type == ERPCType::NetMulticast)
 	{
 		return;
 	}
 
-	EntityRPCType EntityTypePair = EntityRPCType(EntityId, Type);
+	const EntityRPCType EntityTypePair = EntityRPCType(EntityId, Type);
 	uint64* LastAckedRPCId = LastAckedRPCIds.Find(EntityTypePair);
 	if (LastAckedRPCId == nullptr)
 	{
@@ -566,7 +606,7 @@ uint64 SpatialRPCService::GetAckFromView(const Worker_EntityId EntityId, const E
 	}
 }
 
-const RPCRingBuffer& SpatialRPCService::GetBufferFromView(Worker_EntityId EntityId, const ERPCType Type)
+const RPCRingBuffer& SpatialRPCService::GetBufferFromView(const Worker_EntityId EntityId, const ERPCType Type)
 {
 	switch (Type)
 	{
@@ -591,7 +631,7 @@ const RPCRingBuffer& SpatialRPCService::GetBufferFromView(Worker_EntityId Entity
 	}
 }
 
-Schema_ComponentUpdate* SpatialRPCService::GetOrCreateComponentUpdate(EntityComponentId EntityComponentIdPair)
+Schema_ComponentUpdate* SpatialRPCService::GetOrCreateComponentUpdate(const EntityComponentId EntityComponentIdPair)
 {
 	Schema_ComponentUpdate** ComponentUpdatePtr = PendingComponentUpdatesToSend.Find(EntityComponentIdPair);
 	if (ComponentUpdatePtr == nullptr)
@@ -601,7 +641,7 @@ Schema_ComponentUpdate* SpatialRPCService::GetOrCreateComponentUpdate(EntityComp
 	return *ComponentUpdatePtr;
 }
 
-Schema_ComponentData* SpatialRPCService::GetOrCreateComponentData(EntityComponentId EntityComponentIdPair)
+Schema_ComponentData* SpatialRPCService::GetOrCreateComponentData(const EntityComponentId EntityComponentIdPair)
 {
 	Schema_ComponentData** ComponentDataPtr = PendingRPCsOnEntityCreation.Find(EntityComponentIdPair);
 	if (ComponentDataPtr == nullptr)
@@ -657,4 +697,45 @@ void SpatialRPCService::ProcessResultToLatencyTrace(const EPushRPCResult Result,
 }
 #endif // TRACE_LIB_ACTIVE
 
+void SpatialRPCService::PopulateDataStore(const Worker_EntityId EntityId)
+{
+	RPCComponents& Components = DataStore.Emplace(EntityId, RPCComponents{});
+	for (const ComponentData& Data : SubView->GetView()[EntityId].Components)
+	{
+		switch (Data.GetComponentId())
+		{
+		case SpatialConstants::CLIENT_ENDPOINT_COMPONENT_ID:
+			Components.Client = ClientEndpoint(Data.GetUnderlying());
+			break;
+		case SpatialConstants::SERVER_ENDPOINT_COMPONENT_ID:
+			Components.Server = ServerEndpoint(Data.GetUnderlying());
+			break;
+		case SpatialConstants::MULTICAST_RPCS_COMPONENT_ID:
+			Components.Multicast = MulticastRPCs(Data.GetUnderlying());
+			break;
+		default:
+			break;
+		}
+	}
+}
+
+bool SpatialRPCService::ApplyComponentUpdate(const Worker_EntityId EntityId, const Worker_ComponentId ComponentId,
+                                                          Schema_ComponentUpdate* Update)
+{
+	switch (ComponentId)
+	{
+	case SpatialConstants::CLIENT_ENDPOINT_COMPONENT_ID:
+		DataStore[EntityId].Client.ApplyComponentUpdate(Update);
+		return true;
+	case SpatialConstants::SERVER_ENDPOINT_COMPONENT_ID:
+		DataStore[EntityId].Server.ApplyComponentUpdate(Update);
+		return true;
+	case SpatialConstants::MULTICAST_RPCS_COMPONENT_ID:
+		DataStore[EntityId].Multicast.ApplyComponentUpdate(Update);
+		return true;
+	default:
+		break;
+	}
+	return false;
+}
 } // namespace SpatialGDK
